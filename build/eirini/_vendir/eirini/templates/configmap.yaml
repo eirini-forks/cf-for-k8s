@@ -97,6 +97,8 @@ data:
     eirini_cert_path: "/etc/eirini/secrets/eirini-client.crt"
     eirini_key_path: "/etc/eirini/secrets/eirini-client.key"
     ca_path: "/etc/eirini/secrets/eirini-client.ca"
+    opi:
+      unsafe_allow_automount_service_account_token: {{ .Values.opi.unsafe_allow_automount_service_account_token }}
   instance-index-env-injector.yml: |
     service_name: instance-index-env-injector
     service_namespace: {{ .Release.Namespace }}
