@@ -60,25 +60,12 @@ data:
 cc_internal_api: #@ "http://capi.{}.svc.cluster.local:9023".format(system_namespace())
 #@ end
 
-#@ def opi():
-opi:
-  serve_plaintext: true
-  #@overlay/match missing_ok=True
-  plaintext_port: 8080
-  #@overlay/remove
-  tls_port:
-#@ end
-
-#! Use http/port 8080 for eirini-capi communications and let istio do the encryption
-#@overlay/match by=overlay.subset({"kind": "ConfigMap", "metadata":{"name":"eirini"}})
+#@overlay/match by=overlay.subset({"kind": "ConfigMap", "metadata":{"name":"eirini-event-reporter"}})
 #@yaml/text-templated-strings
 ---
 data:
   #@overlay/replace via=lambda a,_: yaml.encode(overlay.apply(yaml.decode(a), events()))
   events.yml:
-
-  #@overlay/replace via=lambda a,_: yaml.encode(overlay.apply(yaml.decode(a), opi()))
-  opi.yml:
 
 #@overlay/match by=overlay.subset({"kind": "Service", "metadata":{"name":"eirini"}})
 ---
@@ -89,7 +76,7 @@ spec:
       port: 8080
       protocol: TCP
 
-#@overlay/match by=overlay.subset({"kind": "Deployment", "metadata":{"name":"eirini"}})
+#@overlay/match by=overlay.subset({"kind": "Deployment", "metadata":{"name":"eirini-api"}})
 ---
 spec:
   template:

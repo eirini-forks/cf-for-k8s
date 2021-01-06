@@ -1,5 +1,8 @@
 #@ load("@ytt:overlay", "overlay")
 
+#@overlay/match by=overlay.subset({"kind":"Namespace", "metadata":{"name":"eirini-core"}})
+#@overlay/remove
+---
 #@overlay/match by=overlay.subset({"kind":"Namespace", "metadata":{"name":"cf-workloads"}})
 #@overlay/remove
 ---
