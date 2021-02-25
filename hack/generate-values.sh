@@ -31,33 +31,33 @@ fi
 while [[ $# -gt 0 ]]; do
   i=$1
   case $i in
-  -d=* | --cf-domain=*)
-    DOMAIN="${i#*=}"
-    shift
-    ;;
-  -d | --cf-domain)
-    DOMAIN="${2}"
-    shift
-    shift
-    ;;
-  -g=* | --gcr-service-account-json=*)
-    GCP_SERVICE_ACCOUNT_JSON_FILE="${i#*=}"
-    shift
-    ;;
-  -g | --gcr-service-account-json)
-    GCP_SERVICE_ACCOUNT_JSON_FILE="${2}"
-    shift
-    shift
-    ;;
-  -s | --silence-hack-warning)
-    SILENCE_HACK_WARNING="true"
-    shift
-    ;;
-  *)
-    echo -e "Error: Unknown flag: ${i/=*/}\n" >&2
-    usage_text >&2
-    exit 1
-    ;;
+    -d=* | --cf-domain=*)
+      DOMAIN="${i#*=}"
+      shift
+      ;;
+    -d | --cf-domain)
+      DOMAIN="${2}"
+      shift
+      shift
+      ;;
+    -g=* | --gcr-service-account-json=*)
+      GCP_SERVICE_ACCOUNT_JSON_FILE="${i#*=}"
+      shift
+      ;;
+    -g | --gcr-service-account-json)
+      GCP_SERVICE_ACCOUNT_JSON_FILE="${2}"
+      shift
+      shift
+      ;;
+    -s | --silence-hack-warning)
+      SILENCE_HACK_WARNING="true"
+      shift
+      ;;
+    *)
+      echo -e "Error: Unknown flag: ${i/=*/}\n" >&2
+      usage_text >&2
+      exit 1
+      ;;
   esac
 done
 
@@ -136,6 +136,15 @@ variables:
     - "*.apps.${DOMAIN}"
     extended_key_usage:
     - server_auth
+- name: instance_index_env_injector_certificate
+  type: certificate
+  options:
+    ca: default_ca
+    common_name: "*.cf-system.svc"
+    alternative_names:
+    - "*.cf-system.svc"
+    extended_key_usage:
+    - server_auth
 - name: uaa_jwt_policy_signing_key
   type: certificate
   options:
@@ -191,6 +200,15 @@ $(bosh interpolate ${VARS_FILE} --path=/workloads_certificate/private_key | grep
   ca: |
 $(bosh interpolate ${VARS_FILE} --path=/workloads_certificate/ca | grep -Ev '^$' | sed -e 's/^/    /')
 
+instance_index_env_injector_certificate:
+  #! This certificates and keys should be valid for *.cf-system.svc
+  crt: |
+$(bosh interpolate ${VARS_FILE} --path=/instance_index_env_injector_certificate/certificate | grep -Ev '^$' | sed -e 's/^/    /')
+  key: |
+$(bosh interpolate ${VARS_FILE} --path=/instance_index_env_injector_certificate/private_key | grep -Ev '^$' | sed -e 's/^/    /')
+  ca: |
+$(bosh interpolate ${VARS_FILE} --path=/instance_index_env_injector_certificate/ca | grep -Ev '^$' | sed -e 's/^/    /')
+
 uaa:
   database:
     password: $(bosh interpolate ${VARS_FILE} --path=/uaa_db_password)
@@ -214,7 +232,7 @@ if [[ -n "${GCP_SERVICE_ACCOUNT_JSON_FILE:=}" ]]; then
 
 app_registry:
   hostname: gcr.io
-  repository_prefix: gcr.io/$( bosh interpolate ${GCP_SERVICE_ACCOUNT_JSON_FILE} --path=/project_id )/cf-workloads
+  repository_prefix: gcr.io/$(bosh interpolate ${GCP_SERVICE_ACCOUNT_JSON_FILE} --path=/project_id)/cf-workloads
   username: _json_key
   password: |
 $(cat ${GCP_SERVICE_ACCOUNT_JSON_FILE} | grep -Ev '^$' | sed -e 's/^/    /')
@@ -222,15 +240,15 @@ EOF
 
 fi
 
-if [[ -n "${K8S_ENV:-}" ]] ; then
-    k8s_env_path=$HOME/workspace/relint-ci-pools/k8s-dev/ready/claimed/"$K8S_ENV"
-    if [[ -f "$k8s_env_path" ]] ; then
-	      ip_addr=$(jq -r .lb_static_ip < "$k8s_env_path")
-        echo 1>&2 "Detected \$K8S_ENV environment var; writing \"load_balancer.static_ip: $ip_addr\" entry to end of output"
-        echo "
+if [[ -n "${K8S_ENV:-}" ]]; then
+  k8s_env_path=$HOME/workspace/relint-ci-pools/k8s-dev/ready/claimed/"$K8S_ENV"
+  if [[ -f "$k8s_env_path" ]]; then
+    ip_addr=$(jq -r .lb_static_ip <"$k8s_env_path")
+    echo 1>&2 "Detected \$K8S_ENV environment var; writing \"load_balancer.static_ip: $ip_addr\" entry to end of output"
+    echo "
 load_balancer:
   enable: true
   static_ip: $ip_addr
 "
-    fi
+  fi
 fi
